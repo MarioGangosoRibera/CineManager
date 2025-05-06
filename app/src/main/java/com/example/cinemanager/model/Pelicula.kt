@@ -1,5 +1,8 @@
 package com.example.cinemanager.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Pelicula(
     val id: Int,
     val titulo: String,

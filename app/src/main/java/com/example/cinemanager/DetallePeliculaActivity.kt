@@ -37,7 +37,7 @@ class DetallePeliculaActivity : AppCompatActivity() {
         listaValoracionesRecyclerView = findViewById(R.id.listaValoracionesRecyclerView)
 
         listaValoracionesRecyclerView.layoutManager = LinearLayoutManager(this)
-        valoracionAdaptador = ValoracionAdaptador(listaDeValoraciones)
+        valoracionAdaptador = ValoracionAdaptador(mutableListOf())
         listaValoracionesRecyclerView.adapter = valoracionAdaptador
 
         // Obtener el ID de la película de la actividad anterior
@@ -55,23 +55,22 @@ class DetallePeliculaActivity : AppCompatActivity() {
                     .apply(RequestOptions().placeholder(android.R.drawable.ic_menu_gallery))
                     .into(posterImageView)*/
 
-                // Simular la obtención de valoraciones para esta película
-                val valoracionesDePelicula = obtenerValoracionesDePelicula(idPelicula)
-                listaDeValoraciones.addAll(valoracionesDePelicula)
-                valoracionAdaptador.actualizarLista(listaDeValoraciones)
+                // Cargar las valoraciones existentes para esta película
+                val valoracionesDePelicula = ValoracionProveedor.getValoracionesPorPelicula(idPelicula)
+                valoracionAdaptador.actualizarLista(valoracionesDePelicula.toMutableList())
+                actualizarValoracionPromedioLocal(it, valoracionesDePelicula)
             }
         }
 
         botonEnviarValoracion.setOnClickListener {
             val puntuacion = barraValoracion.rating
-            // Aquí deberías obtener el ID del usuario real en una aplicación real
-            val idUsuario = "usuarioActual"
+            val idUsuario = "usuarioActual" // Deberías obtener el usuario real
             val nuevaValoracion = Valoracion(idPelicula, idUsuario, puntuacion)
-            listaDeValoraciones.add(nuevaValoracion)
-            valoracionAdaptador.actualizarLista(listaDeValoraciones)
-            // Aquí también deberías guardar la nueva valoración (por ahora solo la mostramos)
-            actualizarValoracionPromedio()
-            barraValoracion.rating = 0f // Resetear la barra de valoración después de enviar
+            ValoracionProveedor.addValoracion(nuevaValoracion) // Añadir al proveedor
+            val valoracionesActualizadas = ValoracionProveedor.getValoracionesPorPelicula(idPelicula)
+            valoracionAdaptador.actualizarLista(valoracionesActualizadas.toMutableList())
+            actualizarValoracionPromedioLocal(PeliculaProveedor.peliculas.find { it.id == idPelicula }, valoracionesActualizadas)
+            barraValoracion.rating = 0f
         }
     }
 
@@ -86,28 +85,14 @@ class DetallePeliculaActivity : AppCompatActivity() {
         }
     }
 
-    // Simulación de obtención de valoraciones para una película
-    private fun obtenerValoracionesDePelicula(idPelicula: Int): List<Valoracion> {
-        // En una aplicación real, esto vendría de una base de datos
-        return when (idPelicula) {
-            1 -> listOf(Valoracion(1, "usuario1", 4.5f), Valoracion(1, "usuario2", 5.0f))
-            2 -> listOf(Valoracion(2, "usuario3", 4.0f))
-            3 -> listOf(Valoracion(3, "usuario4", 5.0f), Valoracion(3, "usuario5", 4.5f))
-            else -> emptyList()
-        }
-    }
-
-    private fun actualizarValoracionPromedio() {
-        // En una aplicación real, la actualización de la valoración promedio
-        // probablemente se haría en la capa de datos y se reflejaría en la lista principal.
-        // Por ahora, solo lo simulamos.
-        val peliculaActual = obtenerPeliculaPorId(idPelicula)
-        peliculaActual?.let { pelicula ->
-            val valoracionesDePelicula = listaDeValoraciones.filter { it.idPelicula == pelicula.id }
-            if (valoracionesDePelicula.isNotEmpty()) {
-                pelicula.valoracionPromedio = valoracionesDePelicula.sumOf { it.puntuacion.toDouble() }.toFloat() / valoracionesDePelicula.size
-                // Aquí podrías tener una forma de notificar al MainActivity para que actualice la lista
-                println("Nueva valoración promedio para ${pelicula.titulo}: ${pelicula.valoracionPromedio}")
+    private fun actualizarValoracionPromedioLocal(pelicula: Pelicula?, valoraciones: List<Valoracion>) {
+        pelicula?.let {
+            if (valoraciones.isNotEmpty()) {
+                it.valoracionPromedio = valoraciones.sumOf { v -> v.puntuacion.toDouble() }.toFloat() / valoraciones.size
+                // Aquí podrías tener una forma de notificar a MainActivity si la lista se muestra allí
+                println("Nueva valoración promedio para ${it.titulo}: ${it.valoracionPromedio}")
+            } else {
+                it.valoracionPromedio = 0f // O algún valor por defecto si no hay valoraciones
             }
         }
     }
